@@ -5,7 +5,8 @@ import asyncio
 import logging
 
 # --- SOZLAMALAR ---
-BOT_TOKEN = "8665911741:AAFflBk5OpdSVZ5FpzDYJDgtH0_pnd2aZ3o"
+import os
+BOT_TOKEN = os.environ.get("8665911741:AAGIG8ojQiWtzc5pJapZZUQz2aAqu9jI4yA")
 CHANNEL_ID = "@BeamModsStudio"  # masalan: @mymodchannel
 
 # -----------------
