@@ -77,9 +77,9 @@ async def send_supra(message: types.Message):
         return
 
     await message.answer_document(
-        document=types.FSInputFile("mods/supra.zip"),
-        caption="🚗 Toyota Supra modi\n✅ O'rnatish: mods papkasiga tashlang!"
-    )
+    document="BQACAgIAAxkBAAMragtkvVc37kBQ2rYwvDeqBxpOniAAAtifAAIIONlLsQeI1Sr59LU7BA",  # ← File ID ni yozing
+    caption="🚗 Barbie shrek modi\n✅ O'rnatish: mods papkasiga tashlang!"
+)
 @dp.message(lambda m: m.document)
 async def get_file_id(message: types.Message):
     file_id = message.document.file_id
