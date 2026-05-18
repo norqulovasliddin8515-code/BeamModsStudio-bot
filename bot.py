@@ -86,3 +86,12 @@ async def main():
     await dp.start_polling(bot)
 
 asyncio.run(main())
+
+@dp.message(lambda m: m.document)
+async def get_file_id(message: types.Message):
+    file_id = message.document.file_id
+    file_name = message.document.file_name
+    await message.answer(
+        f"📁 Fayl nomi: {file_name}\n"
+        f"🔑 File ID:\n`{file_id}`"
+    )
