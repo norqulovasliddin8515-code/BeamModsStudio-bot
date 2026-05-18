@@ -65,12 +65,12 @@ async def send_mods_list(message: types.Message):
 
     await message.answer(
         "🚗 Mavjud modlar:\n\n"
-        "1. /mod_supra — Toyota Supra\n"
+        "1. /Barbie_shrek — Toyota Supra\n"
         "2. /mod_bmw — BMW M5\n\n"
         "Kerakli modni tanlang!"
     )
 
-@dp.message(lambda m: m.text == "/mod_supra")
+@dp.message(lambda m: m.text == "/Barbie_shrek")
 async def send_supra(message: types.Message):
     if not await is_subscribed(message.from_user.id):
         await message.answer("❌ Avval kanalga obuna bo'ling!")
