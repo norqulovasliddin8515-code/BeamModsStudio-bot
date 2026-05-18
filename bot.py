@@ -80,13 +80,6 @@ async def send_supra(message: types.Message):
         document=types.FSInputFile("mods/supra.zip"),
         caption="🚗 Toyota Supra modi\n✅ O'rnatish: mods papkasiga tashlang!"
     )
-
-async def main():
-    print("Bot ishga tushdi!")
-    await dp.start_polling(bot)
-
-asyncio.run(main())
-
 @dp.message(lambda m: m.document)
 async def get_file_id(message: types.Message):
     file_id = message.document.file_id
@@ -95,3 +88,9 @@ async def get_file_id(message: types.Message):
         f"📁 Fayl nomi: {file_name}\n"
         f"🔑 File ID:\n`{file_id}`"
     )
+async def main():
+    print("Bot ishga tushdi!")
+    await dp.start_polling(bot)
+
+asyncio.run(main())
+
