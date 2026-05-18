@@ -6,7 +6,7 @@ import logging
 
 # --- SOZLAMALAR ---
 import os
-BOT_TOKEN = os.environ.get(8665911741:AAGIG8ojQiWtzc5pJapZZUQz2aAqu9jI4yA)
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = "@BeamModsStudio"  # masalan: @mymodchannel
 
 # -----------------
