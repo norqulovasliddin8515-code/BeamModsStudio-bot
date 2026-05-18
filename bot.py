@@ -65,7 +65,7 @@ async def send_mods_list(message: types.Message):
 
     await message.answer(
         "🚗 Mavjud modlar:\n\n"
-        "1. /Barbie_shrek — Toyota Supra\n"
+        "1. /Barbie_shrek — Barbie shrek\n"
         "2. /mod_bmw — BMW M5\n\n"
         "Kerakli modni tanlang!"
     )
