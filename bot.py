@@ -24,6 +24,18 @@ MODS = {
         "file_id": "BQACAgIAAxkBAAMragtkvVc37kBQ2rYwvDeqBxpOniAAAtifAAIIONlLsQeI1Sr59LU7BA",
         "name": "Barbie Shrek"
     },
+    "nokia_hammer": {
+        "file_id": "BQACAgIAAxkBAANlag40ovguaXPZlsdfMpYOExbIVdUAAnyjAAIpZkBILBVHf71r23Y7BA",
+        "name": "nokia_hammer"
+    },
+    "BMW_M3": {
+        "file_id": "BQACAgIAAxkBAANpag45zF3k5QuErO8lIGge1tnoee8AAveUAAJ6bOBL06Qaf7slLeI7BA",
+        "name": "BMW_M3"
+    },
+    "Cat_car": {
+        "file_id": "BQACAgIAAxkBAANrag46p_ophZ1n8NwdUp93EN2x1pEAAumdAAJQEQFIjQABRcODde0UOwQ",
+        "name": "Cat_car"
+    },
 }
 # ----------------------
 
