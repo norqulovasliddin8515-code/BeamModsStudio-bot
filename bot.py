@@ -36,6 +36,7 @@ MODS = {
         "file_id": "BQACAgIAAxkBAAMragtkvVc37kBQ2rYwvDeqBxpOniAAAtifAAIIONlLsQeI1Sr59LU7BA",
         "name": "Barbie_shrek"
 }
+}
 # ----------------------
 
 async def is_subscribed(user_id: int) -> bool:
