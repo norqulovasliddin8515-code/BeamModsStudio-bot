@@ -20,9 +20,9 @@ MODS = {
         "file_id": "BQACAgIAAxkBAANBag4SjOzv4tfVmDfXct--Q9yl9_gAArKiAAJgF4lLtmLe5C0yv6w7BA",
         "name": "Zaz Kpop"
     },
-    "barbie_shrek": {
+    "Barbie_shrek": {
         "file_id": "BQACAgIAAxkBAAMragtkvVc37kBQ2rYwvDeqBxpOniAAAtifAAIIONlLsQeI1Sr59LU7BA",
-        "name": "Barbie Shrek"
+        "name": "Barbie_shrek"
     },
     "nokia_hammer": {
         "file_id": "BQACAgIAAxkBAANlag40ovguaXPZlsdfMpYOExbIVdUAAnyjAAIpZkBILBVHf71r23Y7BA",
