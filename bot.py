@@ -35,7 +35,10 @@ MODS = {
     "Barbie_shrek": {
         "file_id": "BQACAgIAAxkBAAMragtkvVc37kBQ2rYwvDeqBxpOniAAAtifAAIIONlLsQeI1Sr59LU7BA",
         "name": "Barbie_shrek"
-}
+    }
+    "Audir8": {
+        "file_id": "BQACAgIAAxkBAAMfagtf9XNEJk9M00y42F6p7CpvHm4AArCeAALR9FBIIcF9zSWOBpQ7BA",
+        "name": "Audir8"
 }
 # ----------------------
 
