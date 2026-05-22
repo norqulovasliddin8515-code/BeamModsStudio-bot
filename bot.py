@@ -40,7 +40,7 @@ MODS = {
         "file_id": "BQACAgIAAxkBAAMfagtf9XNEJk9M00y42F6p7CpvHm4AArCeAALR9FBIIcF9zSWOBpQ7BA",
         "name": "Audir8"
     },
-     "Resizable Lightning Colorfull Mcqueen": {
+     "Mcqueen": {
         "file_id": "BQACAgIAAxkBAANtag488g34zNb29gvIYuOyDJ3-4x4AAsCcAALR9EhIK4Zxx3XX40U7BA",
         "name": "Resizable Lightning Colorfull Mcqueen"
     },
