@@ -44,6 +44,10 @@ MODS = {
         "file_id": "BQACAgIAAxkBAANtag488g34zNb29gvIYuOyDJ3-4x4AAsCcAALR9EhIK4Zxx3XX40U7BA",
         "name": "Resizable Lightning Colorfull Mcqueen"
     },
+    "indiancow": {
+        "file_id": "BQACAgIAAxkBAAOfag9fgpa42dSOtz5jsTdjN7Bt8roAAiqdAAJiWYFI8M6cNvxI2807BA",
+        "name": "Resizable Lightning indiancow"
+    },
 }
 # ----------------------
 
