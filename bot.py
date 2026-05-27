@@ -48,6 +48,10 @@ MODS = {
         "file_id": "BQACAgIAAxkBAAOfag9fgpa42dSOtz5jsTdjN7Bt8roAAiqdAAJiWYFI8M6cNvxI2807BA",
         "name": "Resizable Lightning indiancow"
     },
+     "pixarmatergugu": {
+        "file_id": "BQACAgIAAxkBAAO1ahb84V3sitOavPkOjDXVFBUbfA4AAj6XAAIZVrhIsb4ZfZM4VLo7BA",
+        "name": "Pixarmatergugu"
+    },
 }
 # ----------------------
 
