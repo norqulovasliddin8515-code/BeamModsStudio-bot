@@ -44,7 +44,7 @@ MODS = {
         "file_id": "BQACAgIAAxkBAANtag488g34zNb29gvIYuOyDJ3-4x4AAsCcAALR9EhIK4Zxx3XX40U7BA",
         "name": "Resizable Lightning Colorfull Mcqueen"
     },
-     "Iphone_hammer": {
+     "hammer": {
         "file_id": "BQACAgIAAxkBAAPTahssrL6P2A10y7NclthAyto-ZKcAAmWgAALd2tlImIuzBw2BWyM7BA",
         "name": "Iphone_hammer"
     },
