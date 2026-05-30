@@ -55,7 +55,7 @@ MODS = {
      "pixarmatergugu": {
         "file_id": "BQACAgIAAxkBAAO1ahb84V3sitOavPkOjDXVFBUbfA4AAj6XAAIZVrhIsb4ZfZM4VLo7BA",
         "name": "pixarmatergugu"
-    },
+    }
 }
 # ----------------------
 
