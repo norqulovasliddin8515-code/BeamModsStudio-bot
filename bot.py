@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 import os
 import json
 import re
@@ -333,7 +333,7 @@ async def main() -> None:
 if __name__ == "__main__":
     import asyncio
     asyncio.run(main())
-=======
+
 # --- ADMIN: FAQAT ZIP FAYL YUBORILGANDA BAZAGA QO'SHISH VA POST QAYTARISH ---
 @dp.message(lambda m: m.from_user.id == 1529212224 and m.document and m.document.file_name.endswith(".zip"))
 async def admin_direct_zip_upload(message: types.Message):
@@ -376,4 +376,4 @@ async def admin_direct_zip_upload(message: types.Message):
         parse_mode="HTML",
         reply_markup=keyboard
     )
->>>>>>> dd71b5ee41ad69896cd973576b1613dd0ccffe0e
+
