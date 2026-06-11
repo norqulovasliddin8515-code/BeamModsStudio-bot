@@ -134,15 +134,67 @@ class UploadMod(StatesGroup):
 
 
 # ─────────────────────────────────────────────
-#  ADMIN COMMAND: /upload  (enters FSM)
+#  ADMIN COMMAND: /upload  (optional – enters FSM manually)
 # ─────────────────────────────────────────────
 @dp.message(Command("upload"), F.from_user.id == ADMIN_ID)
 async def cmd_upload(message: types.Message, state: FSMContext) -> None:
-    """Admin triggers the upload wizard with /upload."""
+    """Admin can also type /upload to be guided step-by-step."""
     await state.set_state(UploadMod.waiting_for_zip)
     await message.answer(
         "📂 <b>Yangi mod yuklash jarayoni boshlandi.</b>\n\n"
         "Iltimos, <b>.zip</b> formatidagi mod faylini yuboring:"
+    )
+
+
+# ─────────────────────────────────────────────
+#  AUTO-TRIGGER: Admin drops .zip in ANY state
+#  (no /upload command needed – works directly)
+# ─────────────────────────────────────────────
+@dp.message(F.from_user.id == ADMIN_ID, F.document)
+async def admin_any_document(message: types.Message, state: FSMContext) -> None:
+    """
+    Catch-all for admin document messages outside the FSM
+    (or inside waiting_for_zip – both are handled here).
+    If it's a .zip → auto-process and jump to waiting_for_photo.
+    If it's not a .zip → remind the admin.
+    """
+    current_state = await state.get_state()
+
+    # If already waiting for photo, the admin sent a doc instead of a photo
+    if current_state == UploadMod.waiting_for_photo:
+        await message.answer(
+            "⚠️ Hozir rasm kutilmoqda, hujjat emas.\n"
+            "Iltimos, mod uchun <b>rasm (photo)</b> yuboring yoki /cancel bosing."
+        )
+        return
+
+    doc = message.document
+
+    # ── Validate .zip ────────────────────────────────────────────────────────
+    if not doc.file_name or not doc.file_name.lower().endswith(".zip"):
+        await message.answer(
+            "⚠️ Faqat <b>.zip</b> kengaytmali mod fayllarini yuboring."
+        )
+        return
+
+    # ── Derive mod_name and mod_key ──────────────────────────────────────────
+    raw_name: str = doc.file_name
+    mod_name: str = raw_name.rsplit(".", 1)[0].replace("_", " ").strip()
+    mod_key:  str = make_mod_key(mod_name)
+
+    # ── Save to FSM state and advance ────────────────────────────────────────
+    await state.update_data(
+        zip_file_id=doc.file_id,
+        mod_name=mod_name,
+        mod_key=mod_key,
+    )
+    await state.set_state(UploadMod.waiting_for_photo)
+
+    await message.answer(
+        f"📁 Mod fayli qabul qilindi.\n"
+        f"🏷 <b>Nomi:</b> {mod_name}\n"
+        f"🔑 <b>Kalit:</b> <code>{mod_key}</code>\n\n"
+        "Endi ushbu mod uchun rasm (photo) yuboring:"
     )
 
 
