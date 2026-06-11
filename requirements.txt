@@ -1,3 +1,8 @@
+# ── Core bot framework ────────────────────────────────────────────────────────
 aiogram==3.7.0
+
+# ── pydantic stack – pinned to versions with pre-built cp312 Linux wheels ─────
+# Without these pins Railway tries to compile pydantic-core from Rust source,
+# which fails because the build image has no Rust toolchain.
 pydantic==2.7.4
 pydantic-core==2.18.4
