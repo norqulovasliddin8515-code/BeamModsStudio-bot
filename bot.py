@@ -1,170 +1,42 @@
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import CommandStart
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-import asyncio
-import logging
-import os
-
-# --- SOZLAMALAR ---
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHANNEL_ID = "@BeamModsStudio"
-# -----------------
-
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
-logging.basicConfig(level=logging.INFO)
-
-# --- MODLAR RO'YHATI ---
-MODS = {
-    "zaz_kpop": {
-        "file_id": "BQACAgIAAxkBAANBag4SjOzv4tfVmDfXct--Q9yl9_gAArKiAAJgF4lLtmLe5C0yv6w7BA",
-        "name": "Zaz Kpop"
-    },
-    "nokia_hammer": {
-        "file_id": "BQACAgIAAxkBAANlag40ovguaXPZlsdfMpYOExbIVdUAAnyjAAIpZkBILBVHf71r23Y7BA",
-        "name": "nokia_hammer"
-    },
-    "BMW_M3": {
-        "file_id": "BQACAgIAAxkBAANpag45zF3k5QuErO8lIGge1tnoee8AAveUAAJ6bOBL06Qaf7slLeI7BA",
-        "name": "BMW_M3"
-    },
-    "Cat_car": {
-        "file_id": "BQACAgIAAxkBAANrag46p_ophZ1n8NwdUp93EN2x1pEAAumdAAJQEQFIjQABRcODde0UOwQ",
-        "name": "Cat_car"
-    },
-    "Barbie_shrek": {
-        "file_id": "BQACAgIAAxkBAAMragtkvVc37kBQ2rYwvDeqBxpOniAAAtifAAIIONlLsQeI1Sr59LU7BA",
-        "name": "Barbie_shrek"
-    },
-    "Audir8": {
-        "file_id": "BQACAgIAAxkBAAMfagtf9XNEJk9M00y42F6p7CpvHm4AArCeAALR9FBIIcF9zSWOBpQ7BA",
-        "name": "Audir8"
-    },
-     "Mcqueen": {
-        "file_id": "BQACAgIAAxkBAANtag488g34zNb29gvIYuOyDJ3-4x4AAsCcAALR9EhIK4Zxx3XX40U7BA",
-        "name": "Resizable Lightning Colorfull Mcqueen"
-    },
-     "hammer": {
-        "file_id": "BQACAgIAAxkBAAPTahssrL6P2A10y7NclthAyto-ZKcAAmWgAALd2tlImIuzBw2BWyM7BA",
-        "name": "Iphone_hammer"
-    },
-    "indiancow": {
-        "file_id": "BQACAgIAAxkBAAOfag9fgpa42dSOtz5jsTdjN7Bt8roAAiqdAAJiWYFI8M6cNvxI2807BA",
-        "name": "Resizable Lightning indiancow"
-    },
-     "pixarmatergugu": {
-        "file_id": "BQACAgIAAxkBAAO1ahb84V3sitOavPkOjDXVFBUbfA4AAj6XAAIZVrhIsb4ZfZM4VLo7BA",
-        "name": "pixarmatergugu"
-    }
-}
-# ----------------------
-
-async def is_subscribed(user_id: int) -> bool:
-    try:
-        member = await bot.get_chat_member(CHANNEL_ID, user_id)
-        return member.status in ["member", "administrator", "creator"]
-    except:
-        return False
-
-@dp.message(CommandStart())
-async def start(message: types.Message):
-    user_id = message.from_user.id
-    name = message.from_user.first_name
-    args = message.text.split()
-
-    # Havola orqali kelgan bo'lsa
-    if len(args) > 1 and args[1].startswith("download_"):
-        mod_key = args[1].replace("download_", "")
-
-        if not await is_subscribed(user_id):
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(
-                    text="📢 Kanalga obuna bo'lish",
-                    url="https://t.me/BeamModsStudio"
-                )],
-                [InlineKeyboardButton(
-                    text="✅ Tekshirish",
-                    callback_data=f"recheck_{mod_key}"
-                )]
-            ])
-            await message.answer(
-                f"Salom {name}! 👋\n\n"
-                "❌ Modlarni olish uchun avval kanalga obuna bo'ling 👇",
-                reply_markup=keyboard
-            )
-            return
-
-        if mod_key in MODS:
-            await message.answer_document(
-                document=MODS[mod_key]["file_id"],
-                caption=f"🚗 {MODS[mod_key]['name']} modi\n✅ BeamNG mods papkasiga tashlang!"
-            )
-        else:
-            await message.answer("❌ Mod topilmadi!")
-        return
-
-    # Oddiy /start
-    if await is_subscribed(user_id):
-        await message.answer(
-            f"✅ Salom {name}!\n\n"
-            "Modlarni kanal postlaridagi havolalar orqali yuklab oling! 👇\n"
-            "👉 https://t.me/BeamModsStudio"
-        )
-    else:
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(
-                text="📢 Kanalga obuna bo'lish",
-                url="https://t.me/BeamModsStudio"
-            )],
-            [InlineKeyboardButton(
-                text="✅ Tekshirish",
-                callback_data="check_sub"
-            )]
-        ])
-        await message.answer(
-            f"Salom {name}! 👋\n\n"
-            "🚗 BeamNG.drive modlarini olish uchun\n"
-            "avval kanalga obuna bo'ling 👇",
-            reply_markup=keyboard
-        )
-
-@dp.callback_query(lambda c: c.data == "check_sub")
-async def check_subscription(callback: types.CallbackQuery):
-    if await is_subscribed(callback.from_user.id):
-        await callback.message.edit_text(
-            "✅ Obuna tasdiqlandi!\n\n"
-            "Modlarni kanal postlaridagi havolalar orqali yuklab oling! 👇\n"
-            "👉 https://t.me/BeamModsStudio"
-        )
-    else:
-        await callback.answer("❌ Hali obuna bo'lmagansiz!", show_alert=True)
-
-@dp.callback_query(lambda c: c.data.startswith("recheck_"))
-async def recheck_subscription(callback: types.CallbackQuery):
-    user_id = callback.from_user.id
-    mod_key = callback.data.replace("recheck_", "")
-
-    if await is_subscribed(user_id):
-        if mod_key in MODS:
-            await callback.message.delete()
-            await callback.message.answer_document(
-                document=MODS[mod_key]["file_id"],
-                caption=f"🚗 {MODS[mod_key]['name']} modi\n✅ BeamNG mods papkasiga tashlang!"
-            )
-    else:
-        await callback.answer("❌ Hali obuna bo'lmagansiz!", show_alert=True)
-
-@dp.message(lambda m: m.document)
-async def get_file_id(message: types.Message):
+# --- ADMIN: FAQAT ZIP FAYL YUBORILGANDA BAZAGA QO'SHISH VA POST QAYTARISH ---
+@dp.message(lambda m: m.from_user.id == 1529212224 and m.document and m.document.file_name.endswith(".zip"))
+async def admin_direct_zip_upload(message: types.Message):
+    # 1. Fayl ID va asl nomini olamiz
     file_id = message.document.file_id
-    file_name = message.document.file_name
+    raw_filename = message.document.file_name  # Masalan: "indiancow.zip" yoki "Nexia3_Optimal.zip"
+
+    # 2. Fayl nomidan moshina nomini chiroyli qilib ajratib olamiz (.zip qismini o'chiramiz)
+    # Tagchiziqlarni bo'shliqqa almashtiramiz (Nexia3_Optimal -> Nexia3 Optimal)
+    mod_name = raw_filename.rsplit('.', 1)[0].replace('_', ' ').strip()
+    
+    # URL va start buyrug'i uchun xavfsiz kalit (Key) generatsiya qilamiz
+    mod_key = make_mod_key(mod_name)
+
+    # 3. MODS bazasiga (faylga) yangi modni qo'shish va saqlash
+    MODS[mod_key] = {
+        "file_id": file_id,
+        "name": mod_name
+    }
+    save_mods(MODS)
+
+    # 4. Standart tavsif matni
+    # (Agar har safar har xil tavsif kerak bo'lmasa, shu standart matn juda chiroyli chiqadi)
+    default_desc = "BeamNG.drive uchun sifatli yangi premium modifikatsiya!"
+
+    # Kanbop chiroyli post matni va yuklash tugmasini tayyorlash
+    post_text = make_post_text(mod_name, default_desc)
+    keyboard = make_download_button(mod_key)
+
+    # Bot adminning o'ziga tayyor kanal xabarini qaytaradi
     await message.answer(
-        f"📁 Fayl nomi: {file_name}\n"
-        f"🔑 File ID:\n`{file_id}`"
+        "✨ <b>Yangi mod bazaga qo'shildi va tayyor post yaratildi!</b>\n"
+        "Quyidagi xabarni sotuv kanalingizga to'g'ridan-to'g'ri Forward (Yo'naltirish) qiling:\n"
+        "----------------------------------------",
+        parse_mode="HTML"
     )
-
-async def main():
-    print("Bot ishga tushdi!")
-    await dp.start_polling(bot)
-
-asyncio.run(main())
+    
+    await message.answer(
+        text=post_text,
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
