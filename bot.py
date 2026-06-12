@@ -10,7 +10,7 @@ import json
 # --- SOZLAMALAR ---
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = "@BeamModsStudio"
-ADMIN_ID = 1529212224
+ADMIN_ID = 7022141893
 MODS_FILE = "mods.json"
 # -----------------
 
