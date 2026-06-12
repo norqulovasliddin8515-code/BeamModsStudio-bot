@@ -1,431 +1,225 @@
-
-import os
-import json
-import re
-import logging
-
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.enums import ParseMode
-from aiogram.client.default import DefaultBotProperties
-from aiogram.filters import CommandStart, Command
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import CommandStart
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.deep_linking import decode_payload
+import asyncio
+import logging
+import os
+import re
+import json
 
-# ─────────────────────────────────────────────
-#  CONFIGURATION
-# ─────────────────────────────────────────────
-BOT_TOKEN: str  = os.getenv("BOT_TOKEN", "8665911741:AAFjdUnqWfFYWExSkyrR_PraETwY8JPdQJc")
-ADMIN_ID:  int  = int(os.getenv("ADMIN_ID", "1529212224"))
-CHANNEL_ID: str = os.getenv("CHANNEL_ID", "@BeamModsStudio")   # used for subscription check
-MODS_FILE:  str = "mods.json"
+# --- SOZLAMALAR ---
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+CHANNEL_ID = "@BeamModsStudio"
+ADMIN_ID = 1529212224
+MODS_FILE = "mods.json"
+# -----------------
 
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────────
-#  BOT & DISPATCHER
-# ─────────────────────────────────────────────
-bot = Bot(
-    token=BOT_TOKEN, 
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)  # ← Yangi standart bo'yicha shunday yoziladi
-)
-dp  = Dispatcher(storage=MemoryStorage())
-
-# ─────────────────────────────────────────────
-#  PERSISTENCE HELPERS
-# ─────────────────────────────────────────────
-def load_mods() -> dict:
-    """Load the mods catalogue from disk.  Returns an empty dict on first run."""
-    if not os.path.exists(MODS_FILE):
-        return {}
-    try:
-        with open(MODS_FILE, "r", encoding="utf-8") as fh:
-            return json.load(fh)
-    except (json.JSONDecodeError, IOError):
-        logger.warning("mods.json is corrupt or unreadable – starting fresh.")
-        return {}
-
-
-def save_mods(mods: dict) -> None:
-    """Persist the mods catalogue to disk atomically."""
-    with open(MODS_FILE, "w", encoding="utf-8") as fh:
-        json.dump(mods, fh, ensure_ascii=False, indent=2)
-
-
-# In-memory catalogue — loaded once at startup, kept in sync via save_mods()
-MODS: dict = load_mods()
-
-# ─────────────────────────────────────────────
-#  UTILITY HELPERS
-# ─────────────────────────────────────────────
-def slugify(text: str) -> str:
-    """
-    Convert an arbitrary string into a compact URL-safe slug.
-    Example: "Indian Cow"  → "indiancow"
-             "Nexia3 Optimal" → "nexia3optimal"
-    """
-    text = text.lower()
-    text = re.sub(r"[^a-z0-9\s]", "", text)   # strip non-alphanumeric (except spaces)
-    text = re.sub(r"\s+", "", text)             # remove all whitespace
-    return text or "mod"
-
-
-def make_mod_key(mod_name: str) -> str:
-    """Return a guaranteed-unique slug key for *mod_name*."""
-    base = slugify(mod_name)
-    if base not in MODS:
-        return base
-    # Append numeric suffix until unique
-    counter = 2
-    while f"{base}{counter}" in MODS:
-        counter += 1
-    return f"{base}{counter}"
-
-
-def make_post_text(mod_name: str) -> str:
-    """Build the structured Uzbek promotional post (HTML)."""
-    return (
-        f"🚗 <b>YANGI MOD: {mod_name}</b>\n"
-        "\n"
-        "📌 <b>Tavsif:</b>\n"
-        "BeamNG.drive uchun sifatli yangi premium modifikatsiya!\n"
-        "\n"
-        "⚙️ <b>Xususiyatlari:</b>\n"
-        "- Yuqori sifatli model\n"
-        "- Realistic fizika\n"
-        "- BeamNG.drive ga mos\n"
-        "\n"
-        "📥 <b>Yuklab olish — BEPUL!</b>\n"
-        "\n"
-        "✅ Yuklab olish uchun kanalga obuna bo'lish talab etiladi!\n"
-        "📢 Kanal: @BeamModsStudio"
-    )
-
-
-def make_download_keyboard(mod_key: str) -> InlineKeyboardMarkup:
-    """Inline keyboard with the deep-link download button."""
-    url = f"https://t.me/BeamModsStudio_bot?start=download_{mod_key}"
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="📥 Yuklab olish", url=url)]
-        ]
-    )
-
-
-async def is_subscribed(user_id: int) -> bool:
-    """Check whether *user_id* is a member of CHANNEL_ID."""
-    try:
-        member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
-        return member.status not in ("left", "kicked", "banned")
-    except Exception as exc:
-        logger.warning("Subscription check failed for %s: %s", user_id, exc)
-        return False
-
-
-# ─────────────────────────────────────────────
-#  FSM STATE GROUPS
-# ─────────────────────────────────────────────
-class UploadMod(StatesGroup):
-    waiting_for_zip   = State()   # Step 1 – admin sends .zip document
-    waiting_for_photo = State()   # Step 2 – admin sends cover photo
-
-
-# ─────────────────────────────────────────────
-#  ADMIN COMMAND: /upload  (optional – enters FSM manually)
-# ─────────────────────────────────────────────
-@dp.message(Command("upload"), F.from_user.id == ADMIN_ID)
-async def cmd_upload(message: types.Message, state: FSMContext) -> None:
-    """Admin can also type /upload to be guided step-by-step."""
-    await state.set_state(UploadMod.waiting_for_zip)
-    await message.answer(
-        "📂 <b>Yangi mod yuklash jarayoni boshlandi.</b>\n\n"
-        "Iltimos, <b>.zip</b> formatidagi mod faylini yuboring:"
-    )
-
-
-# ─────────────────────────────────────────────
-#  AUTO-TRIGGER: Admin drops .zip in ANY state
-#  (no /upload command needed – works directly)
-# ─────────────────────────────────────────────
-@dp.message(F.from_user.id == ADMIN_ID, F.document)
-async def admin_any_document(message: types.Message, state: FSMContext) -> None:
-    """
-    Catch-all for admin document messages outside the FSM
-    (or inside waiting_for_zip – both are handled here).
-    If it's a .zip → auto-process and jump to waiting_for_photo.
-    If it's not a .zip → remind the admin.
-    """
-    current_state = await state.get_state()
-
-    # If already waiting for photo, the admin sent a doc instead of a photo
-    if current_state == UploadMod.waiting_for_photo:
-        await message.answer(
-            "⚠️ Hozir rasm kutilmoqda, hujjat emas.\n"
-            "Iltimos, mod uchun <b>rasm (photo)</b> yuboring yoki /cancel bosing."
-        )
-        return
-
-    doc = message.document
-
-    # ── Validate .zip ────────────────────────────────────────────────────────
-    if not doc.file_name or not doc.file_name.lower().endswith(".zip"):
-        await message.answer(
-            "⚠️ Faqat <b>.zip</b> kengaytmali mod fayllarini yuboring."
-        )
-        return
-
-    # ── Derive mod_name and mod_key ──────────────────────────────────────────
-    raw_name: str = doc.file_name
-    mod_name: str = raw_name.rsplit(".", 1)[0].replace("_", " ").strip()
-    mod_key:  str = make_mod_key(mod_name)
-
-    # ── Save to FSM state and advance ────────────────────────────────────────
-    await state.update_data(
-        zip_file_id=doc.file_id,
-        mod_name=mod_name,
-        mod_key=mod_key,
-    )
-    await state.set_state(UploadMod.waiting_for_photo)
-
-    await message.answer(
-        f"📁 Mod fayli qabul qilindi.\n"
-        f"🏷 <b>Nomi:</b> {mod_name}\n"
-        f"🔑 <b>Kalit:</b> <code>{mod_key}</code>\n\n"
-        "Endi ushbu mod uchun rasm (photo) yuboring:"
-    )
-
-
-# ─────────────────────────────────────────────
-#  STEP 1 – Admin sends .zip document
-# ─────────────────────────────────────────────
-@dp.message(UploadMod.waiting_for_zip, F.from_user.id == ADMIN_ID, F.document)
-async def handle_zip_upload(message: types.Message, state: FSMContext) -> None:
-    """Receive the .zip archive; validate format; move to photo step."""
-    doc = message.document
-
-    # ── Validate file extension ──────────────────────────────────────────────
-    if not doc.file_name or not doc.file_name.lower().endswith(".zip"):
-        await message.answer(
-            "⚠️ Noto'g'ri fayl formati.\n"
-            "Faqat <b>.zip</b> kengaytmali fayllarni yuboring."
-        )
-        return  # stay in waiting_for_zip
-
-    # ── Derive mod_name and mod_key ──────────────────────────────────────────
-    raw_name: str = doc.file_name
-    mod_name: str = raw_name.rsplit(".", 1)[0].replace("_", " ").strip()
-    mod_key:  str = make_mod_key(mod_name)
-
-    # ── Persist interim data in FSM state ────────────────────────────────────
-    await state.update_data(
-        zip_file_id=doc.file_id,
-        mod_name=mod_name,
-        mod_key=mod_key,
-    )
-    await state.set_state(UploadMod.waiting_for_photo)
-
-    await message.answer(
-        f"📁 Mod fayli qabul qilindi.\n"
-        f"🏷 <b>Nomi:</b> {mod_name}\n"
-        f"🔑 <b>Kalit:</b> <code>{mod_key}</code>\n\n"
-        "Endi ushbu mod uchun rasm (photo) yuboring:"
-    )
-
-
-# ── Guard: wrong file type while waiting for .zip (admin only) ──────────────
-@dp.message(UploadMod.waiting_for_zip, F.from_user.id == ADMIN_ID)
-async def handle_zip_wrong_type(message: types.Message) -> None:
-    await message.answer(
-        "⚠️ Kutilmagan xabar turi.\n"
-        "Faqat <b>.zip</b> kengaytmali fayl yuboring, yoki /cancel bosing."
-    )
-
-
-# ─────────────────────────────────────────────
-#  STEP 2 – Admin sends cover photo
-# ─────────────────────────────────────────────
-@dp.message(UploadMod.waiting_for_photo, F.from_user.id == ADMIN_ID, F.photo)
-async def handle_photo_upload(message: types.Message, state: FSMContext) -> None:
-    """Receive the cover photo; finalise mod entry; send channel-ready preview."""
-    # Highest resolution = last element in the photo array
-    photo_id: str = message.photo[-1].file_id
-
-    # ── Retrieve step-1 data from FSM state ──────────────────────────────────
-    data      = await state.get_data()
-    zip_file_id: str = data["zip_file_id"]
-    mod_name:    str = data["mod_name"]
-    mod_key:     str = data["mod_key"]
-
-    # ── Persist to global MODS dict and mods.json ─────────────────────────────
-    MODS[mod_key] = {
-        "file_id":  zip_file_id,
-        "name":     mod_name,
-        "photo_id": photo_id,   # stored for potential future use
+# --- MODLARNI YUKLASH ---
+def load_mods():
+    if os.path.exists(MODS_FILE):
+        with open(MODS_FILE, "r") as f:
+            return json.load(f)
+    return {
+        "zaz_kpop": {
+            "file_id": "BQACAgIAAxkBAANBag4SjOzv4tfVmDfXct--Q9yl9_gAArKiAAJgF4lLtmLe5C0yv6w7BA",
+            "name": "Zaz Kpop"
+        },
+        "barbie_shrek": {
+            "file_id": "BQACAgIAAxkBAAMragtkvVc37kBQ2rYwvDeqBxpOniAAAtifAAIIONlLsQeI1Sr59LU7BA",
+            "name": "Barbie Shrek"
+        },
+        "nokia_hammer": {
+            "file_id": "BQACAgIAAxkBAANlag40ovguaXPZlsdfMpYOExbIVdUAAnyjAAIpZkBILBVHf71r23Y7BA",
+            "name": "Nokia Hammer"
+        },
+        "BMW_M3": {
+            "file_id": "BQACAgIAAxkBAANpag45zF3k5QuErO8lIGge1tnoee8AAveUAAJ6bOBL06Qaf7slLeI7BA",
+            "name": "BMW M3"
+        },
+        "Cat_car": {
+            "file_id": "BQACAgIAAxkBAANrag46p_ophZ1n8NwdUp93EN2x1pEAAumdAAJQEQFIjQABRcODde0UOwQ",
+            "name": "Cat Car"
+        },
     }
-    save_mods(MODS)
 
-    # ── Build promotional post ────────────────────────────────────────────────
-    post_text = make_post_text(mod_name)
-    keyboard  = make_download_keyboard(mod_key)
+def save_mods(mods: dict):
+    with open(MODS_FILE, "w") as f:
+        json.dump(mods, f, ensure_ascii=False, indent=2)
 
-    # ── Clear FSM state ───────────────────────────────────────────────────────
-    await state.clear()
+MODS = load_mods()
 
-    # ── Send success notice + channel-ready preview ───────────────────────────
-    await message.answer(
-        f"✅ <b>Mod muvaffaqiyatli saqlandi!</b>\n"
-        f"🔑 Kalit: <code>{mod_key}</code>\n\n"
-        "Quyidagi postni kanalingizga yo'naltiring (Forward):"
-    )
-    await message.answer_photo(
-        photo=photo_id,
-        caption=post_text,
-        reply_markup=keyboard,
-        parse_mode=ParseMode.HTML,
-    )
+# --- YORDAMCHI ---
+def make_mod_key(name: str) -> str:
+    key = name.lower()
+    key = re.sub(r"[^a-z0-9_]", "_", key)
+    key = re.sub(r"_+", "_", key).strip("_")
+    return key
 
+# --- ADMIN: MOD QABUL QILISH ---
+@dp.message(lambda m: m.from_user.id == ADMIN_ID and m.document)
+async def admin_new_mod(message: types.Message):
+    caption = message.caption or ""
+    file_id = message.document.file_id
+    file_name = message.document.file_name or "mod"
 
-# ── Guard: wrong type while waiting for photo (admin only) ───────────────────
-@dp.message(UploadMod.waiting_for_photo, F.from_user.id == ADMIN_ID)
-async def handle_photo_wrong_type(message: types.Message) -> None:
-    await message.answer(
-        "⚠️ Rasm kutilmoqda.\n"
-        "Iltimos, faqat <b>rasm (photo)</b> yuboring, yoki /cancel bosing."
-    )
+    # Caption dan nom va tavsif olish
+    name_match = re.search(r"Nomi:\s*(.+)", caption)
+    desc_match = re.search(r"Tavsif:\s*(.+)", caption)
 
-
-# ─────────────────────────────────────────────
-#  /cancel – abort upload wizard at any step
-# ─────────────────────────────────────────────
-@dp.message(Command("cancel"), F.from_user.id == ADMIN_ID)
-async def cmd_cancel(message: types.Message, state: FSMContext) -> None:
-    current = await state.get_state()
-    if current is None:
-        await message.answer("ℹ️ Hozirda faol jarayon yo'q.")
-        return
-    await state.clear()
-    await message.answer("❌ Yuklash jarayoni bekor qilindi.")
-
-
-# ─────────────────────────────────────────────
-#  GUARD: non-admin messages during any FSM step
-# ─────────────────────────────────────────────
-@dp.message(UploadMod.waiting_for_zip)
-@dp.message(UploadMod.waiting_for_photo)
-async def guard_non_admin_in_fsm(message: types.Message) -> None:
-    """Silently reject non-admin messages that arrive while FSM is active."""
-    # Ignore completely – do not acknowledge to avoid confusion
-    pass
-
-
-# ─────────────────────────────────────────────
-#  /start – deep-link & subscription gate
-# ─────────────────────────────────────────────
-@dp.message(CommandStart())
-async def cmd_start(message: types.Message) -> None:
-    args: str = message.text.split(maxsplit=1)[1] if len(message.text.split()) > 1 else ""
-
-    # ── Deep-link download flow ───────────────────────────────────────────────
-    if args.startswith("download_"):
-        mod_key = args[len("download_"):]
-
-        # Check subscription first
-        subscribed = await is_subscribed(message.from_user.id)
-        if not subscribed:
-            join_button = InlineKeyboardMarkup(
-                inline_keyboard=[[
-                    InlineKeyboardButton(
-                        text="📢 Kanalga obuna bo'lish",
-                        url=f"https://t.me/{CHANNEL_ID.lstrip('@')}"
-                    )
-                ]]
-            )
-            await message.answer(
-                "🔒 <b>Faylni yuklab olish uchun avval kanalga obuna bo'lishingiz kerak!</b>\n\n"
-                "Obuna bo'lgach, ushbu havolaga qaytib kiring:",
-                reply_markup=join_button,
-            )
-            return
-
-        # Deliver the file
-        mod = MODS.get(mod_key)
-        if not mod:
-            await message.answer("❌ Bunday mod topilmadi. Havola eskirgan bo'lishi mumkin.")
-            return
-
-        await message.answer_document(
-            document=mod["file_id"],
-            caption=(
-                f"📦 <b>{mod['name']}</b>\n\n"
-                "BeamNG.drive uchun mod muvaffaqiyatli yuklandi!\n"
-                "📢 Kanal: @BeamModsStudio"
-            ),
+    if not name_match:
+        # Caption yo'q bo'lsa faqat file_id bersin
+        await message.answer(
+            f"📁 Fayl: {file_name}\n"
+            f"🔑 File ID:\n`{file_id}`\n\n"
+            "📝 Post uchun caption qo'shing:\n"
+            "```\nNomi: Mod nomi\nTavsif: Mod tavsifi\n```",
+            parse_mode="Markdown"
         )
         return
 
-    # ── Default welcome ───────────────────────────────────────────────────────
-    await message.answer(
-        "👋 <b>BeamModsStudio botiga xush kelibsiz!</b>\n\n"
-        "Bu bot orqali BeamNG.drive modlarini bepul yuklab olishingiz mumkin.\n\n"
-        "📢 Kanalimizga obuna bo'ling va modlardan bahramand bo'ling: @BeamModsStudio"
-    )
+    name = name_match.group(1).strip()
+    desc = desc_match.group(1).strip() if desc_match else "BeamNG.drive uchun sifatli yangi mod!"
+    mod_key = make_mod_key(name)
 
-
-# ─────────────────────────────────────────────
-#  ENTRY POINT
-# ─────────────────────────────────────────────
-async def main() -> None:
-    logger.info("BeamModsStudio bot starting…")
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
-
-# --- ADMIN: FAQAT ZIP FAYL YUBORILGANDA BAZAGA QO'SHISH VA POST QAYTARISH ---
-@dp.message(lambda m: m.from_user.id == 1529212224 and m.document and m.document.file_name.endswith(".zip"))
-async def admin_direct_zip_upload(message: types.Message):
-    # 1. Fayl ID va asl nomini olamiz
-    file_id = message.document.file_id
-    raw_filename = message.document.file_name  # Masalan: "indiancow.zip" yoki "Nexia3_Optimal.zip"
-
-    # 2. Fayl nomidan moshina nomini chiroyli qilib ajratib olamiz (.zip qismini o'chiramiz)
-    # Tagchiziqlarni bo'shliqqa almashtiramiz (Nexia3_Optimal -> Nexia3 Optimal)
-    mod_name = raw_filename.rsplit('.', 1)[0].replace('_', ' ').strip()
-    
-    # URL va start buyrug'i uchun xavfsiz kalit (Key) generatsiya qilamiz
-    mod_key = make_mod_key(mod_name)
-
-    # 3. MODS bazasiga (faylga) yangi modni qo'shish va saqlash
+    # MODS ga saqlash
     MODS[mod_key] = {
         "file_id": file_id,
-        "name": mod_name
+        "name": name
     }
     save_mods(MODS)
 
-    # 4. Standart tavsif matni
-    # (Agar har safar har xil tavsif kerak bo'lmasa, shu standart matn juda chiroyli chiqadi)
-    default_desc = "BeamNG.drive uchun sifatli yangi premium modifikatsiya!"
-
-    # Kanbop chiroyli post matni va yuklash tugmasini tayyorlash
-    post_text = make_post_text(mod_name, default_desc)
-    keyboard = make_download_button(mod_key)
-
-    # Bot adminning o'ziga tayyor kanal xabarini qaytaradi
-    await message.answer(
-        "✨ <b>Yangi mod bazaga qo'shildi va tayyor post yaratildi!</b>\n"
-        "Quyidagi xabarni sotuv kanalingizga to'g'ridan-to'g'ri Forward (Yo'naltirish) qiling:\n"
-        "----------------------------------------",
-        parse_mode="HTML"
+    # Tayyor post matni
+    download_url = f"https://t.me/BeamModsStudio_bot?start=download_{mod_key}"
+    post_text = (
+        f"🚗 YANGI MOD: {name}\n\n"
+        f"📌 Tavsif:\n{desc}\n\n"
+        f"⚙️ Xususiyatlari:\n"
+        f"• Yuqori sifatli model\n"
+        f"• Realistic fizika\n"
+        f"• BeamNG.drive ga mos\n\n"
+        f"📥 Yuklab olish — BEPUL!\n\n"
+        f"✅ Yuklab olish uchun kanalga obuna bo'lish talab etiladi!\n\n"
+        f"📢 Kanal: @BeamModsStudio"
     )
-    
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📥 Yuklab olish",
+            url=download_url
+        )]
+    ])
+
+    # Adminga tayyor postni yuborish
+    await message.answer(
+        f"✅ Mod saqlandi! Mana tayyor post:\n\n"
+        f"👇 Kanalga ko'chirish uchun quyidagi xabarni forward qiling:"
+    )
     await message.answer(
         text=post_text,
-        parse_mode="HTML",
         reply_markup=keyboard
     )
 
+# --- OBUNA TEKSHIRISH ---
+async def is_subscribed(user_id: int) -> bool:
+    try:
+        member = await bot.get_chat_member(CHANNEL_ID, user_id)
+        return member.status in ["member", "administrator", "creator"]
+    except:
+        return False
+
+# --- /start ---
+@dp.message(CommandStart())
+async def start(message: types.Message):
+    user_id = message.from_user.id
+    name = message.from_user.first_name
+    args = message.text.split()
+
+    if len(args) > 1 and args[1].startswith("download_"):
+        mod_key = args[1].replace("download_", "")
+
+        if not await is_subscribed(user_id):
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text="📢 Kanalga obuna bo'lish",
+                    url="https://t.me/BeamModsStudio"
+                )],
+                [InlineKeyboardButton(
+                    text="✅ Tekshirish",
+                    callback_data=f"recheck_{mod_key}"
+                )]
+            ])
+            await message.answer(
+                f"Salom {name}! 👋\n\n"
+                "❌ Modlarni olish uchun avval kanalga obuna bo'ling 👇",
+                reply_markup=keyboard
+            )
+            return
+
+        if mod_key in MODS:
+            await message.answer_document(
+                document=MODS[mod_key]["file_id"],
+                caption=f"🚗 {MODS[mod_key]['name']} modi\n✅ BeamNG mods papkasiga tashlang!"
+            )
+        else:
+            await message.answer("❌ Mod topilmadi!")
+        return
+
+    if await is_subscribed(user_id):
+        await message.answer(
+            f"✅ Salom {name}!\n\n"
+            "Modlarni kanal postlaridagi havolalar orqali yuklab oling! 👇\n"
+            "👉 https://t.me/BeamModsStudio"
+        )
+    else:
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(
+                text="📢 Kanalga obuna bo'lish",
+                url="https://t.me/BeamModsStudio"
+            )],
+            [InlineKeyboardButton(
+                text="✅ Tekshirish",
+                callback_data="check_sub"
+            )]
+        ])
+        await message.answer(
+            f"Salom {name}! 👋\n\n"
+            "🚗 BeamNG.drive modlarini olish uchun\n"
+            "avval kanalga obuna bo'ling 👇",
+            reply_markup=keyboard
+        )
+
+@dp.callback_query(lambda c: c.data == "check_sub")
+async def check_subscription(callback: types.CallbackQuery):
+    if await is_subscribed(callback.from_user.id):
+        await callback.message.edit_text(
+            "✅ Obuna tasdiqlandi!\n\n"
+            "Modlarni kanal postlaridagi havolalar orqali yuklab oling! 👇\n"
+            "👉 https://t.me/BeamModsStudio"
+        )
+    else:
+        await callback.answer("❌ Hali obuna bo'lmagansiz!", show_alert=True)
+
+@dp.callback_query(lambda c: c.data.startswith("recheck_"))
+async def recheck_subscription(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    mod_key = callback.data.replace("recheck_", "")
+
+    if await is_subscribed(user_id):
+        if mod_key in MODS:
+            await callback.message.delete()
+            await callback.message.answer_document(
+                document=MODS[mod_key]["file_id"],
+                caption=f"🚗 {MODS[mod_key]['name']} modi\n✅ BeamNG mods papkasiga tashlang!"
+            )
+    else:
+        await callback.answer("❌ Hali obuna bo'lmagansiz!", show_alert=True)
+
+async def main():
+    print("Bot ishga tushdi!")
+    await dp.start_polling(bot)
+
+asyncio.run(main())
