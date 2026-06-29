@@ -1,5 +1,5 @@
 from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.enums import ChatMemberStatus
 from aiogram.exceptions import TelegramBadRequest
@@ -11,7 +11,9 @@ import json
 import html
 
 # --- SOZLAMALAR ---
-BOT_TOKEN = os.environ.get("8665911741:AAFjdUnqWfFYWExSkyrR_PraETwY8JPdQJc")
+# DIQQAT: tokenni KODGA yozma! Railway -> Variables bo'limida
+# BOT_TOKEN nomli o'zgaruvchi yaratib, qiymatiga tokenni qo'y.
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL_ID = "@BeamModsStudio"
 BOT_USERNAME = "BeamModsStudio_bot"   # @ belgisisiz
 ADMIN_ID = 7022141893
@@ -101,6 +103,31 @@ async def admin_new_mod(message: types.Message):
         f"📌 Kanal postidagi <b>«📥 Yuklab olish»</b> yozuviga shu havolani biriktiring.",
         parse_mode="HTML",
         disable_web_page_preview=True
+    )
+
+# --- /id : o'z Telegram ID'ingizni bilish uchun ---
+@dp.message(Command("id"))
+async def get_id(message: types.Message):
+    await message.answer(
+        f"🆔 Sizning ID: <code>{message.from_user.id}</code>\n"
+        f"⚙️ Botdagi ADMIN_ID: <code>{ADMIN_ID}</code>\n\n"
+        + ("✅ Mos keladi — siz adminsiz."
+           if message.from_user.id == ADMIN_ID
+           else "❌ Mos kelmaydi! Kodda ADMIN_ID ni yuqoridagi ID ga o'zgartiring."),
+        parse_mode="HTML"
+    )
+
+# --- DEBUG: fayl admin handlerga tushmasa, ID ni ko'rsatadi ---
+# (Muammo hal bo'lgach, bu handlerni o'chirib tashlasangiz bo'ladi)
+@dp.message(F.document)
+async def debug_document(message: types.Message):
+    logging.info(f"Document from non-admin id={message.from_user.id}")
+    await message.answer(
+        f"⚠️ Fayl admin handlerga tushmadi.\n\n"
+        f"🆔 Sizning ID: <code>{message.from_user.id}</code>\n"
+        f"⚙️ ADMIN_ID: <code>{ADMIN_ID}</code>\n\n"
+        f"Agar bu siz bo'lsangiz — kodda ADMIN_ID ni shu ID ga o'zgartiring va qayta deploy qiling.",
+        parse_mode="HTML"
     )
 
 # --- OBUNA TEKSHIRISH ---
